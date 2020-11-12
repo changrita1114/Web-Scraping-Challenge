@@ -42,7 +42,7 @@ def scrape_info():
     soup = bs(html, "html.parser")
 
     # Find the src for the featured image
-    relative_image_path = soup.find_all('img', class_='thumb')[15]['src']
+    relative_image_path = soup.find_all('img', class_='thumb')[18]['src']
     featured_image_url = url_2 + relative_image_path
 
     # Visit Mars Facts page
@@ -55,7 +55,8 @@ def scrape_info():
     tables = pd.read_html(url)
     mars_df = tables[2]
     mars_df.columns = ['Description', 'Mars']
-    html_table = mars_df.to_html(index=False)
+    mars_df.set_index('Description', inplace=True)
+    html_table = mars_df.to_html()
     html_table = html_table.replace('\n', '')
 
     # Visit Mars Hemispheres page
