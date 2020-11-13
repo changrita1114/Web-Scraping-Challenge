@@ -35,7 +35,7 @@
 
         <div class="row" id="latest_news">
             <div class="col-md-12">
-                <h3 class="heading">Latest Mars Mews</h3>
+                <h3 class="heading">Latest Mars News</h3>
                 <h6>{{mars.news_title}}</h6>
                 <small>{{mars.news_p}}</small>
             </div>
@@ -47,8 +47,7 @@
             </div>
             <div class="col-md-4">
                 <h4 class="heading">Mars Facts</h4>
-                <h5>{{mars.html_table}}</h5>
-                </table>
+                  {{mars.html_table|safe}}
             </div>
         </div>
         <div class="row" id="mars_hemisheres">
