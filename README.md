@@ -3,7 +3,6 @@ In this project, a web application that scrapes various websites for data relate
 <br>
 ### Step 1 - Scraping
 Scraping the necessary from four different websites using Jupyter Notebook.
-<br>
 #### NASA Mars News
 
 ![alt app_image](https://github.com/changrita1114/Web-Scraping-Challenge/blob/main/Missions_to_Mars/app_screenshot.png?raw=true)
