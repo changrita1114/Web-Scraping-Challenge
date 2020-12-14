@@ -7,6 +7,25 @@
     <title>Missions to Mars</title>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
     <style>
+        table {
+            font-family: arial, sans-serif;
+            border-collapse: collapse;
+            width: 95%;
+            /* margin-left: 30px;
+            margin-top: 30px; */
+        }
+
+        td,
+        th {
+            border: 1px solid #dddddd;
+            text-align: left;
+            padding: 8px;
+        }
+
+        tr:nth-child(even) {
+            background-color: #dddddd;
+        }
+
         .img_title {
             text-align: center;
         }
@@ -21,6 +40,15 @@
 
         #hemispheres_heading {
             text-align: center;
+        }
+
+        .heading_mars_facts {
+            margin-top: 35px;
+            margin-left: 20px;
+        }
+
+        .table_1 {
+            padding: 20px;
         }
     </style>
 </head>
@@ -46,8 +74,8 @@
                 <img src="{{ mars.featured_image_url }}" alt="featured Mars image">
             </div>
             <div class="col-md-4">
-                <h4 class="heading">Mars Facts</h4>
-                  {{mars.html_table|safe}}
+                <h4 class="heading_mars_facts">Mars Facts</h4>
+                <div class="table_1">{{mars.html_table|safe}}</div>
             </div>
         </div>
         <div class="row" id="mars_hemisheres">
