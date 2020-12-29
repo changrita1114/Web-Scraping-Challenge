@@ -1,134 +1,146 @@
 from splinter import Browser
 from bs4 import BeautifulSoup as bs
 import pandas as pd
-import time
+import datetime as dt
 
 
-def init_browser():
-    # @NOTE: Replace the path with your actual path to the chromedriver
-    executable_path = {"executable_path": "/usr/local/bin/chromedriver"}
-    return Browser("chrome", **executable_path, headless=False)
+def scrape_all():
+    # Initiate headless driver for deployment
+    browser = Browser("chrome", executable_path="chromedriver", headless=True)
 
+    news_title, news_p = mars_news(browser)
 
-def scrape_info():
-    browser = init_browser()
+    # Run all scraping functions and store data in a dictionary
+    mars_data = {
+        "news_title": news_title,
+        "news_p": news_p,
+        "featured_image": featured_image(browser),
+        "facts": mars_facts(),
+        "hemispheres": hemispheres(browser),
+        "last_modified": dt.datetime.now()
+    }
 
+    # Stop webdriver and return data
+    browser.quit()
+    return mars_data
+
+def mars_news(browser):
+    # Scrape Mars News
     # Visit NASA Mars News
-    url = "https://mars.nasa.gov/news/?page=0&per_page=40&order=publish_date+desc%2Ccreated_at+desc&search=&category=19%2C165%2C184%2C204&blank_scope=Latest"
+    url = "https://mars.nasa.gov/news/"
     browser.visit(url)
 
-    time.sleep(1)
+    # Optional delay for loading the page
+    browser.is_element_present_by_css("ul.item_list li.slide", wait_time=1)
 
-    # Scrape page into Soup
+    # Convert the browser html to a soup object and then quit the browser
     html = browser.html
-    soup = bs(html, "html.parser")
+    news_soup = bs(html, "html.parser")
 
-    # Retrieve the latest news
-    results = soup.find_all('ul', class_='item_list')
-    # loop over results to get article data
-    for result in results:
-        news_title = result.find('div', class_='content_title').text
-        news_p = result.find('div', class_='article_teaser_body').text
+    # Add try/except for error handling
+    try:
+        slide_elem = news_soup.select_one("ul.item_list li.slide")
+        # Use the parent tag to find the first 'a' tag and save it as 'news_title'
+        news_title = slide_elem.find("div", class_="content_title").text
+        # Use the parent element to find the paragraph text
+        news_p = slide_elem.find("div", class_="article_teaser_body").text
 
-    # Visit JPL Mars Space Images - Featured Image
-    url = "https://www.jpl.nasa.gov/spaceimages/?search=&category=Mars#submit"
-    url_2 = "https://www.jpl.nasa.gov/"
+    except AttributeError:
+        return None, None
+
+    return news_title, news_p
+
+
+def featured_image(browser):
+    # Visit URL
+    url = "https://www.jpl.nasa.gov/spaceimages/?search=&category=Mars"
     browser.visit(url)
 
-    time.sleep(1)
+    # Find and click the full image button
+    full_image_elem = browser.find_by_id("full_image")[0]
+    full_image_elem.click()
 
-    # Scrape page into Soup
+    # Find the more info button and click that
+    browser.is_element_present_by_text("more info", wait_time=1)
+    more_info_elem = browser.links.find_by_partial_text("more info")
+    more_info_elem.click()
+
+    # Parse the resulting html with soup
     html = browser.html
-    soup = bs(html, "html.parser")
+    img_soup = bs(html, "html.parser")
 
-    # Find the src for the featured image
-    relative_image_path = soup.find_all('img', class_='thumb')[18]['src']
-    featured_image_url = url_2 + relative_image_path
+    # Add try/except for error handling
+    try:
+        # Find the relative image url
+        img_url_rel = img_soup.select_one("figure.lede a img").get("src")
 
-    # Visit Mars Facts page
-    url = "https://space-facts.com/mars/"
-    browser.visit(url)
+    except AttributeError:
+        return None
 
-    time.sleep(1)
+    # Use the base url to create an absolute url
+    img_url = f"https://www.jpl.nasa.gov{img_url_rel}"
 
-    # Scrape page using pandas
-    tables = pd.read_html(url)
-    mars_df = tables[2]
+    return img_url
+
+
+def mars_facts():
+    # Add try/except for error handling
+    try:
+        # Use 'read_html' to scrape the facts table into a dataframe
+        mars_df = pd.read_html("https://space-facts.com/mars/")[2]
+    except BaseException:
+        return None
+
+    # Assign columns and set index of dataframe
     mars_df.columns = ['Description', 'Mars']
     mars_df.set_index('Description', inplace=True)
-    html_table = mars_df.to_html()
-    html_table = html_table.replace('\n', '')
 
+    # Convert dataframe into HTML format, add bootstrap
+    return mars_df.to_html(classes="table table-striped")
+
+
+def hemispheres(browser):
     # Visit Mars Hemispheres page
     url = "https://astrogeology.usgs.gov/search/results?q=hemisphere+enhanced&k1=target&v1=Mars"
     browser.visit(url)
 
-    time.sleep(1)
+    # Click the link, find the sample anchor, return the href
+    hemisphere_image_urls = []
+    for i in range(4):
+        # Find the elements on each loop to avoid a stale element exception
+        browser.find_by_css("a.product-item h3")[i].click()
+        hemi_data = scrape_hemisphere(browser.html)
+        # Append hemisphere object to list
+        hemisphere_image_urls.append(hemi_data)
+        # Finally, we navigate backwards
+        browser.back()
 
-    # Find the src for 4 images
-    browser.find_by_text('Cerberus Hemisphere Enhanced').click()
-    html = browser.html
-    soup = bs(html, 'html.parser')
-    fig_1 = soup.find_all('li')[0].a["href"]
-    title_1 = soup.find('h2', class_="title").text
+    return hemisphere_image_urls
 
-    # Visit page again
-    url = "https://astrogeology.usgs.gov/search/results?q=hemisphere+enhanced&k1=target&v1=Mars"
-    browser.visit(url)
 
-    time.sleep(1)
+def scrape_hemisphere(html_text):
+    # parse html text
+    hemi_soup = bs(html_text, "html.parser")
 
-    # Find the src for 4 images
-    browser.find_by_text('Schiaparelli Hemisphere Enhanced').click()
-    html = browser.html
-    soup = bs(html, 'html.parser')
-    fig_2 = soup.find_all('li')[0].a["href"]
-    title_2 = soup.find('h2', class_="title").text
+    # adding try/except for error handling
+    try:
+        title_elem = hemi_soup.find("h2", class_="title").get_text()
+        sample_elem = hemi_soup.find("a", text="Sample").get("href")
 
-    # Visit page again
-    url = "https://astrogeology.usgs.gov/search/results?q=hemisphere+enhanced&k1=target&v1=Mars"
-    browser.visit(url)
+    except AttributeError:
+        # Image error will return None, for better front-end handling
+        title_elem = None
+        sample_elem = None
 
-    time.sleep(1)
-
-    # Find the src for 4 images
-    browser.find_by_text('Syrtis Major Hemisphere Enhanced').click()
-    html = browser.html
-    soup = bs(html, 'html.parser')
-    fig_3 = soup.find_all('li')[0].a["href"]
-    title_3 = soup.find('h2', class_="title").text
-
-    # Visit page again
-    url = "https://astrogeology.usgs.gov/search/results?q=hemisphere+enhanced&k1=target&v1=Mars"
-    browser.visit(url)
-
-    time.sleep(1)
-
-    # Find the src for 4 images
-    browser.find_by_text('Valles Marineris Hemisphere Enhanced').click()
-    html = browser.html
-    soup = bs(html, 'html.parser')
-    fig_4 = soup.find_all('li')[0].a["href"]
-    title_4 = soup.find('h2', class_="title").text
-
-    # Store data in a dictionary
-    mars_data = {
-        "news_title": news_title,
-        "news_p": news_p,
-        "featured_image_url": featured_image_url,
-        "html_table": html_table,
-        "fig_1": fig_1,
-        "title_1": title_1,
-        "fig_2": fig_2,
-        "title_2": title_2,
-        "fig_3": fig_3,
-        "title_3": title_3,
-        "fig_4": fig_4,
-        "title_4": title_4
+    hemispheres = {
+        "title": title_elem,
+        "img_url": sample_elem
     }
 
-    # Close the browser after scraping
-    browser.quit()
+    return hemispheres
 
-    # Return results
-    return mars_data
+
+if __name__ == "__main__":
+
+    # If running as script, print scraped data
+    print(scrape_all())
